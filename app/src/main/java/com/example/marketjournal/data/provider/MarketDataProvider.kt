@@ -316,6 +316,122 @@ class DemoMarketDataProvider : MarketDataProvider {
             vwap = 487.60,
             atr14 = 6.5,
             isDemoData = true
+        ),
+        Stock(
+            symbol = "VEDL",
+            companyName = "Vedanta Ltd",
+            sector = "Metals & Mining / Natural Resources",
+            currentPrice = 492.80,
+            changePercent = 1.85,
+            dayHigh = 498.50,
+            dayLow = 484.00,
+            volume = 16800000,
+            avgVolume20D = 10500000,
+            relativeVolume = 1.60,
+            deliveryPercent = 48.5,
+            marketCapCr = 192000.0,
+            pe = 14.8,
+            sectorPe = 16.5,
+            pb = 3.8,
+            roe = 22.4,
+            roce = 24.8,
+            debtToEquity = 1.15,
+            salesGrowth3Y = 16.2,
+            profitGrowth3Y = 18.5,
+            rsi14 = 61.5,
+            ema20 = 482.0,
+            ema50 = 465.0,
+            ema200 = 410.0,
+            vwap = 489.20,
+            atr14 = 12.8,
+            isDemoData = true
+        ),
+        Stock(
+            symbol = "TATASTEEL",
+            companyName = "Tata Steel Ltd",
+            sector = "Metals & Mining",
+            currentPrice = 162.40,
+            changePercent = 1.35,
+            dayHigh = 164.80,
+            dayLow = 159.20,
+            volume = 28500000,
+            avgVolume20D = 22000000,
+            relativeVolume = 1.30,
+            deliveryPercent = 51.2,
+            marketCapCr = 202000.0,
+            pe = 38.5,
+            sectorPe = 16.5,
+            pb = 2.1,
+            roe = 5.8,
+            roce = 9.2,
+            debtToEquity = 0.82,
+            salesGrowth3Y = 14.0,
+            profitGrowth3Y = 8.5,
+            rsi14 = 59.4,
+            ema20 = 158.0,
+            ema50 = 152.0,
+            ema200 = 140.0,
+            vwap = 161.50,
+            atr14 = 4.2,
+            isDemoData = true
+        ),
+        Stock(
+            symbol = "SBIN",
+            companyName = "State Bank of India",
+            sector = "Public Sector Banking",
+            currentPrice = 825.60,
+            changePercent = 0.95,
+            dayHigh = 832.00,
+            dayLow = 818.00,
+            volume = 14200000,
+            avgVolume20D = 12000000,
+            relativeVolume = 1.18,
+            deliveryPercent = 46.5,
+            marketCapCr = 736000.0,
+            pe = 11.2,
+            sectorPe = 12.0,
+            pb = 1.8,
+            roe = 17.2,
+            roce = 18.0,
+            debtToEquity = 1.40,
+            salesGrowth3Y = 19.5,
+            profitGrowth3Y = 28.0,
+            rsi14 = 57.8,
+            ema20 = 815.0,
+            ema50 = 795.0,
+            ema200 = 740.0,
+            vwap = 822.40,
+            atr14 = 14.5,
+            isDemoData = true
+        ),
+        Stock(
+            symbol = "BAJFINANCE",
+            companyName = "Bajaj Finance Ltd",
+            sector = "Financial Services / NBFC",
+            currentPrice = 7150.00,
+            changePercent = 1.60,
+            dayHigh = 7210.00,
+            dayLow = 7020.00,
+            volume = 1250000,
+            avgVolume20D = 950000,
+            relativeVolume = 1.32,
+            deliveryPercent = 58.0,
+            marketCapCr = 442000.0,
+            pe = 29.8,
+            sectorPe = 24.0,
+            pb = 5.2,
+            roe = 21.8,
+            roce = 22.4,
+            debtToEquity = 3.20,
+            salesGrowth3Y = 26.5,
+            profitGrowth3Y = 28.5,
+            rsi14 = 63.2,
+            ema20 = 7020.0,
+            ema50 = 6880.0,
+            ema200 = 6750.0,
+            vwap = 7110.00,
+            atr14 = 140.0,
+            isDemoData = true
         )
     )
 
@@ -353,38 +469,100 @@ class DemoMarketDataProvider : MarketDataProvider {
 }
 
 /**
+ * Supported Indian Broker API Providers.
+ */
+enum class BrokerType(val displayName: String, val defaultBaseUrl: String, val accountLabel: String) {
+    ANGEL_ONE("Angel One (SmartAPI)", "https://apiconnect.angelone.in", "Angel One Client Code (Account ID)"),
+    ZERODHA_KITE("Zerodha (Kite Connect)", "https://api.kite.trade", "Kite User ID (e.g. AB1234)"),
+    CUSTOM_REST("Custom REST Gateway", "https://api.marketjournal.ai", "Client / Account ID")
+}
+
+/**
+ * Complete credentials structure for Indian Broker APIs including Angel One SmartAPI and Zerodha.
+ */
+data class BrokerApiConfig(
+    val brokerType: BrokerType = BrokerType.ANGEL_ONE,
+    val clientCode: String = "", // Angel One Client ID / Zerodha User ID
+    val apiKey: String = "", // SmartAPI Key / Kite API Key
+    val passwordOrMpin: String = "", // MPIN / Password
+    val totpSecret: String = "", // 6-digit TOTP or base32 authenticator secret
+    val sessionOrJwtToken: String = "", // JWT / Feed Token / Access Token
+    val baseUrl: String = BrokerType.ANGEL_ONE.defaultBaseUrl
+)
+
+/**
  * Live Market Data Provider Interface contract.
  * Does NOT invent live prices or fake responses if unconfigured.
  * Strictly verifies API configuration and reports exact missing parameters.
  */
 class LiveRestMarketDataProvider(
-    private var baseUrl: String = "",
-    private var apiKey: String = "",
-    private var accessToken: String = ""
+    private var config: BrokerApiConfig = BrokerApiConfig()
 ) : MarketDataProvider {
 
+    fun updateConfig(newConfig: BrokerApiConfig) {
+        this.config = newConfig
+    }
+
+    fun getConfig(): BrokerApiConfig = config
+
     fun updateConfig(baseUrl: String, apiKey: String, accessToken: String) {
-        this.baseUrl = baseUrl.trim()
-        this.apiKey = apiKey.trim()
-        this.accessToken = accessToken.trim()
+        this.config = this.config.copy(
+            baseUrl = baseUrl.trim(),
+            apiKey = apiKey.trim(),
+            sessionOrJwtToken = accessToken.trim()
+        )
     }
 
     fun isConfigured(): Boolean {
-        return baseUrl.isNotBlank() && apiKey.isNotBlank()
+        return when (config.brokerType) {
+            BrokerType.ANGEL_ONE -> {
+                config.clientCode.isNotBlank() &&
+                config.apiKey.isNotBlank() &&
+                (config.sessionOrJwtToken.isNotBlank() || (config.passwordOrMpin.isNotBlank() && config.totpSecret.isNotBlank()))
+            }
+            BrokerType.ZERODHA_KITE -> {
+                config.clientCode.isNotBlank() && config.apiKey.isNotBlank() && config.sessionOrJwtToken.isNotBlank()
+            }
+            BrokerType.CUSTOM_REST -> {
+                config.baseUrl.isNotBlank() && config.apiKey.isNotBlank()
+            }
+        }
+    }
+
+    fun getMissingParametersList(): List<String> {
+        val missing = mutableListOf<String>()
+        when (config.brokerType) {
+            BrokerType.ANGEL_ONE -> {
+                if (config.clientCode.isBlank()) missing.add("Angel One Client Code (Account ID)")
+                if (config.apiKey.isBlank()) missing.add("SmartAPI Key (from smartapi.angelbroking.com)")
+                if (config.sessionOrJwtToken.isBlank() && config.passwordOrMpin.isBlank()) missing.add("MPIN / Password or Session JWT Token")
+                if (config.sessionOrJwtToken.isBlank() && config.totpSecret.isBlank()) missing.add("TOTP Secret / Live Authenticator code")
+            }
+            BrokerType.ZERODHA_KITE -> {
+                if (config.clientCode.isBlank()) missing.add("Kite User ID")
+                if (config.apiKey.isBlank()) missing.add("Kite Connect API Key")
+                if (config.sessionOrJwtToken.isBlank()) missing.add("Access Token / Enctoken")
+            }
+            BrokerType.CUSTOM_REST -> {
+                if (config.baseUrl.isBlank()) missing.add("Gateway Base URL")
+                if (config.apiKey.isBlank()) missing.add("API Secret / Token")
+            }
+        }
+        return missing
     }
 
     override suspend fun getWatchlist(): Result<List<Stock>> {
         if (!isConfigured()) {
+            val missing = getMissingParametersList().joinToString(", ")
             return Result.failure(
                 IllegalStateException(
-                    "Live Market Provider is unconfigured. Required parameters: Base URL and API Key / Broker Access Token. " +
-                    "To enable live feeds, configure your Broker/NSE gateway in the Settings tab."
+                    "Live Market Provider (${config.brokerType.displayName}) is unconfigured. Missing: $missing. " +
+                    "Please fill in your credentials in the Config tab."
                 )
             )
         }
-        // In real deployment with credentials configured, this executes the Retrofit/OkHttp call.
         return Result.failure(
-            IllegalStateException("Live connection to '$baseUrl' requires active session handshake.")
+            IllegalStateException("Live connection to ${config.brokerType.displayName} at '${config.baseUrl}' requires active market hours session token handshake.")
         )
     }
 
@@ -408,7 +586,12 @@ class LiveRestMarketDataProvider(
         return if (isConfigured()) {
             ProviderStatus.LIVE_CONNECTED
         } else {
-            ProviderStatus.LIVE_UNCONFIGURED
+            val missing = getMissingParametersList()
+            if (missing.isNotEmpty()) {
+                ProviderStatus.LIVE_UNCONFIGURED
+            } else {
+                ProviderStatus.LIVE_UNCONFIGURED
+            }
         }
     }
 }

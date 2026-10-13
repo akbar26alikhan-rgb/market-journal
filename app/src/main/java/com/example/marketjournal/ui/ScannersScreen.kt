@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddChart
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
@@ -189,6 +190,38 @@ fun ScannersScreen(
             }
         }
 
+        // Live Mode / Fallback Notice Banner
+        if (state.errorMessage != null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(WarningAmber.copy(alpha = 0.15f))
+                    .border(1.dp, WarningAmber.copy(alpha = 0.5f), RoundedCornerShape(6.dp))
+                    .padding(10.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = null,
+                        tint = WarningAmber,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = state.errorMessage,
+                        fontSize = 11.sp,
+                        color = Slate200,
+                        lineHeight = 15.sp
+                    )
+                }
+            }
+        }
+
         // Content List
         if (state.isLoading) {
             Box(
@@ -204,25 +237,70 @@ fun ScannersScreen(
                 }
             }
         } else {
+            val cleanQuery = state.searchQuery.trim().lowercase()
             val filteredStocks = state.scoredStocks.filter { scored ->
-                val matchesQuery = state.searchQuery.isBlank() ||
-                        scored.stock.symbol.contains(state.searchQuery, ignoreCase = true) ||
-                        scored.stock.companyName.contains(state.searchQuery, ignoreCase = true) ||
-                        scored.stock.sector.contains(state.searchQuery, ignoreCase = true)
-                val matchesScore = scored.compositeScore >= state.minScoreFilter
-                matchesQuery && matchesScore
+                if (cleanQuery.isBlank()) {
+                    scored.compositeScore >= state.minScoreFilter
+                } else {
+                    val sym = scored.stock.symbol.lowercase()
+                    val name = scored.stock.companyName.lowercase()
+                    val sec = scored.stock.sector.lowercase()
+
+                    // Comprehensive search: symbol, company name, sector, or common ticker alias
+                    val matchesText = sym.contains(cleanQuery) || name.contains(cleanQuery) || sec.contains(cleanQuery)
+                    val isVedantaMatch = (cleanQuery.contains("vedanta") || cleanQuery.contains("vedl") || cleanQuery == "ved") &&
+                            (sym == "vedl" || name.contains("vedanta"))
+                    val isTataMatch = cleanQuery.contains("tata") && (sym.contains("tata") || name.contains("tata"))
+                    val isSteelMatch = cleanQuery.contains("steel") && (sym.contains("steel") || name.contains("steel"))
+
+                    matchesText || isVedantaMatch || isTataMatch || isSteelMatch
+                }
             }
 
             if (filteredStocks.isEmpty()) {
                 Box(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "No setups match the current filters.",
-                        color = Slate400,
-                        fontSize = 14.sp
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Text(
+                            text = if (state.searchQuery.isNotBlank()) {
+                                "No demo stocks found matching \"${state.searchQuery}\""
+                            } else {
+                                "No setups match the score threshold (${state.minScoreFilter}+)."
+                            },
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "In Demo Mode, popular NSE stocks are simulated (e.g. VEDL / Vedanta, RELIANCE, TCS, TATAMOTORS, TATASTEEL, SBIN, BAJFINANCE, HDFCBANK, TRENT).\n\nTo track any other Indian stock, switch to the Journal tab to add a custom paper trade, or configure Live Broker APIs in Config.",
+                            color = Slate400,
+                            fontSize = 12.sp,
+                            lineHeight = 17.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                        if (state.searchQuery.isNotBlank() || state.minScoreFilter > 0) {
+                            Button(
+                                onClick = {
+                                    onSearchQueryChanged("")
+                                    onMinScoreChanged(0)
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Slate700,
+                                    contentColor = Color.White
+                                ),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text("Clear Search & Filters", fontSize = 12.sp)
+                            }
+                        }
+                    }
                 }
             } else {
                 LazyColumn(

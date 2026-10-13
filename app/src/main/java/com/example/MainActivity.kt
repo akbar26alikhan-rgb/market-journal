@@ -199,8 +199,8 @@ fun MarketJournalApp(viewModel: MainViewModel) {
                         onSwitchProvider = { type ->
                             viewModel.switchProvider(type)
                         },
-                        onSaveLiveConfig = { baseUrl, apiKey, token ->
-                            viewModel.saveLiveConfig(baseUrl, apiKey, token)
+                        onSaveBrokerConfig = { brokerConfig ->
+                            viewModel.saveLiveBrokerConfig(brokerConfig)
                         }
                     )
                 }

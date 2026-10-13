@@ -39,7 +39,7 @@ data class ScannersUiState(
     val scoredStocks: List<ScoredStock> = emptyList(),
     val isLoading: Boolean = false,
     val searchQuery: String = "",
-    val minScoreFilter: Int = 50,
+    val minScoreFilter: Int = 0,
     val errorMessage: String? = null
 )
 
@@ -68,9 +68,14 @@ data class SchedulerUiState(
 data class ConfigUiState(
     val providerType: MarketDataProviderType = MarketDataProviderType.DEMO_DATA,
     val providerStatus: ProviderStatus = ProviderStatus.ACTIVE_DEMO,
-    val liveBaseUrl: String = "https://api.kite.trade",
+    val brokerType: com.example.marketjournal.data.provider.BrokerType = com.example.marketjournal.data.provider.BrokerType.ANGEL_ONE,
+    val clientCode: String = "",
     val liveApiKey: String = "",
+    val passwordOrMpin: String = "",
+    val totpSecret: String = "",
     val liveAccessToken: String = "",
+    val liveBaseUrl: String = com.example.marketjournal.data.provider.BrokerType.ANGEL_ONE.defaultBaseUrl,
+    val missingParameters: List<String> = emptyList(),
     val saveMessage: String? = null
 )
 
@@ -151,12 +156,19 @@ class MainViewModel(
             scanResult.onSuccess { scored ->
                 _scannersState.value = _scannersState.value.copy(
                     scoredStocks = scored,
-                    isLoading = false
+                    isLoading = false,
+                    errorMessage = null
                 )
             }.onFailure { err ->
+                val fallbackResult = repository.providerManager.getDemoProvider().getWatchlist()
+                val fallbackScored = fallbackResult.getOrNull()?.let { stocks ->
+                    com.example.marketjournal.engine.DeterministicStockScoringEngine.rankWatchlist(stocks, strategy)
+                } ?: emptyList()
+
                 _scannersState.value = _scannersState.value.copy(
+                    scoredStocks = fallbackScored,
                     isLoading = false,
-                    errorMessage = err.message ?: "Failed to scan stocks"
+                    errorMessage = "Live Broker feed not connected. Showing simulated NSE stocks (including VEDL, RELIANCE, TCS)."
                 )
             }
         }
@@ -249,15 +261,44 @@ class MainViewModel(
         refreshMarketData()
     }
 
-    fun saveLiveConfig(baseUrl: String, apiKey: String, accessToken: String) {
-        repository.providerManager.getLiveProvider().updateConfig(baseUrl, apiKey, accessToken)
+    fun saveLiveBrokerConfig(brokerConfig: com.example.marketjournal.data.provider.BrokerApiConfig) {
+        repository.providerManager.getLiveProvider().updateConfig(brokerConfig)
+        val isConfigured = repository.providerManager.getLiveProvider().isConfigured()
+        val missing = repository.providerManager.getLiveProvider().getMissingParametersList()
         val status = repository.providerManager.getLiveProvider().getConfigurationStatus()
+
+        val msg = if (isConfigured) {
+            "✓ Credentials for ${brokerConfig.brokerType.displayName} saved successfully! Account: ${brokerConfig.clientCode}"
+        } else {
+            "⚠️ Incomplete: Missing ${missing.joinToString(", ")}"
+        }
+
         _configState.value = _configState.value.copy(
-            liveBaseUrl = baseUrl,
-            liveApiKey = apiKey,
-            liveAccessToken = accessToken,
+            brokerType = brokerConfig.brokerType,
+            clientCode = brokerConfig.clientCode,
+            liveApiKey = brokerConfig.apiKey,
+            passwordOrMpin = brokerConfig.passwordOrMpin,
+            totpSecret = brokerConfig.totpSecret,
+            liveAccessToken = brokerConfig.sessionOrJwtToken,
+            liveBaseUrl = brokerConfig.baseUrl,
+            missingParameters = missing,
             providerStatus = status,
-            saveMessage = if (status.isOperational) "Credentials validated!" else "Saved. Missing valid live connection."
+            saveMessage = msg
+        )
+    }
+
+    fun saveLiveConfig(baseUrl: String, apiKey: String, accessToken: String) {
+        val currentBroker = _configState.value.brokerType
+        saveLiveBrokerConfig(
+            com.example.marketjournal.data.provider.BrokerApiConfig(
+                brokerType = currentBroker,
+                clientCode = _configState.value.clientCode,
+                apiKey = apiKey,
+                passwordOrMpin = _configState.value.passwordOrMpin,
+                totpSecret = _configState.value.totpSecret,
+                sessionOrJwtToken = accessToken,
+                baseUrl = baseUrl
+            )
         )
     }
 }

@@ -95,4 +95,24 @@ class DeterministicStockScoringEngineTest {
         assertEquals("WEAKSTOCK", ranked.last().stock.symbol)
         assertTrue(ranked.first().compositeScore > ranked.last().compositeScore)
     }
+
+    @Test
+    fun `demo provider includes Vedanta and search matches correctly`() {
+        val provider = com.example.marketjournal.data.provider.DemoMarketDataProvider()
+        val stocks = kotlinx.coroutines.runBlocking { provider.getWatchlist().getOrThrow() }
+        val vedanta = stocks.find { it.symbol == "VEDL" }
+
+        org.junit.Assert.assertNotNull("VEDL (Vedanta Ltd) must be present in demo watchlist", vedanta)
+        assertTrue("Company name should contain Vedanta", vedanta!!.companyName.contains("Vedanta", ignoreCase = true))
+
+        // Test search query matching for "vedanta"
+        val query = "vedanta"
+        val matches = stocks.filter {
+            it.symbol.contains(query, ignoreCase = true) ||
+            it.companyName.contains(query, ignoreCase = true) ||
+            it.sector.contains(query, ignoreCase = true)
+        }
+
+        assertTrue("Searching 'vedanta' must find VEDL", matches.any { it.symbol == "VEDL" })
+    }
 }
