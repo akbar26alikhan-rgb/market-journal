@@ -1,0 +1,6 @@
+{
+  "name": "Market Journal AI",
+  "description": "Autonomous Indian stock market scanner, deterministic scoring engine, stock tracking journal, and daily EOD report generator.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
